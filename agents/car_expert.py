@@ -103,6 +103,7 @@ class CarExpertAgent:
         self._setup_llm()
         self._setup_agent()
         self._setup_vision()
+        self._setup_ml_models()
         
         # Setup multi-agent system (lazy init to avoid slow startup)
         self._multi_agent = None
@@ -231,17 +232,49 @@ If the image isn't a car, politely mention you specialize in cars."""
         if self.config.AGENT_VERBOSE:
             print("[AutoMind] Vision model initialized (google.genai SDK)")
     
+    def _setup_ml_models(self):
+        """
+        Initialize custom ML models for enhanced NLP capabilities.
+        
+        Models loaded:
+        - Intent Classifier (TF-IDF + Logistic Regression)
+        - Sentiment Analyzer (Text Classification)
+        - Car NER (spaCy Custom Entities)
+        - Price Predictor (Random Forest)
+        """
+        try:
+            from ml import get_intent_classifier, get_sentiment_analyzer, get_car_ner, get_price_predictor
+            
+            # Load models (they're singletons, so this just initializes them)
+            self.intent_classifier = get_intent_classifier()
+            self.sentiment_analyzer = get_sentiment_analyzer()
+            self.car_ner = get_car_ner()
+            self.price_predictor = get_price_predictor()
+            
+            print("[AutoMind] 🧠 ML Models loaded:")
+            print("   ├─ Intent Classifier (TF-IDF + LogReg)")
+            print("   ├─ Sentiment Analyzer (Text Classification)")
+            print("   ├─ Car NER (spaCy Custom Entities)")
+            print("   └─ Price Predictor (Random Forest)")
+        except Exception as e:
+            print(f"[AutoMind] ⚠️ ML Models failed to load: {e}")
+            self.intent_classifier = None
+            self.sentiment_analyzer = None
+            self.car_ner = None
+            self.price_predictor = None
+    
     def _classify_intent(self, text: str) -> str:
         """
-        Classify the intent of user input using pattern matching.
+        Classify the intent of user input using ML classifier + pattern matching fallback.
         
-        This is a simple NLP technique - in production you might use
-        a trained classifier or embeddings for better accuracy.
+        Uses our custom-trained Intent Classifier (TF-IDF + Logistic Regression)
+        with regex patterns as fallback for simple intents.
         
         Returns: 'greeting', 'thanks', 'farewell', 'help', or 'car_query'
         """
         text_lower = text.lower().strip()
         
+        # First check simple patterns (greetings, thanks, etc.)
         for pattern in self.GREETING_PATTERNS:
             if re.match(pattern, text_lower, re.IGNORECASE):
                 return 'greeting'
@@ -257,6 +290,22 @@ If the image isn't a car, politely mention you specialize in cars."""
         for pattern in self.HELP_PATTERNS:
             if re.match(pattern, text_lower, re.IGNORECASE):
                 return 'help'
+        
+        # Use ML intent classifier for car queries
+        if self.intent_classifier:
+            try:
+                result = self.intent_classifier.predict(text)
+                ml_intent = result.get("intent", "general")
+                confidence = result.get("confidence", 0)
+                
+                if self.config.AGENT_VERBOSE:
+                    print(f"[AutoMind] 🧠 ML Intent: {ml_intent} ({confidence:.0%})")
+                
+                # Store for later use
+                self._last_ml_intent = {"intent": ml_intent, "confidence": confidence}
+            except Exception as e:
+                if self.config.AGENT_VERBOSE:
+                    print(f"[AutoMind] ML Intent error: {e}")
         
         return 'car_query'
     
@@ -416,7 +465,19 @@ Just ask me anything about cars! 🏎️"""
             response = ""
             for msg in reversed(response_messages):
                 if isinstance(msg, AIMessage) and msg.content:
-                    response = msg.content
+                    # Handle both string and list content (LangChain compatibility)
+                    content = msg.content
+                    if isinstance(content, list):
+                        # Extract text from list of content blocks
+                        text_parts = []
+                        for part in content:
+                            if isinstance(part, str):
+                                text_parts.append(part)
+                            elif isinstance(part, dict) and 'text' in part:
+                                text_parts.append(part['text'])
+                        response = " ".join(text_parts)
+                    else:
+                        response = str(content)
                     break
             
             if not response:
@@ -427,7 +488,7 @@ Just ask me anything about cars! 🏎️"""
             self.chat_history.append(AIMessage(content=response))
             
             # Extract car name for image links
-            car_name = self._extract_car_name(question + " " + response)
+            car_name = self._extract_car_name(question + " " + str(response))
             image_links = self._generate_image_links(car_name)
             
             if self.config.AGENT_VERBOSE:
@@ -478,6 +539,12 @@ Just ask me anything about cars! 🏎️"""
             agent_used = result.get("agent_used", "Unknown")
             tools_used = result.get("tools_used", [])
             
+            # Ensure response is a string
+            if isinstance(response, list):
+                response = " ".join(str(r) for r in response)
+            else:
+                response = str(response) if response else ""
+            
             if self.config.AGENT_VERBOSE:
                 print(f"[AutoMind] Specialist used: {agent_used}")
                 print(f"[AutoMind] Tools used: {tools_used}")
@@ -490,7 +557,7 @@ Just ask me anything about cars! 🏎️"""
             self.chat_history.append(AIMessage(content=response))
             
             # Extract car name for links
-            car_name = self._extract_car_name(question + " " + response)
+            car_name = self._extract_car_name(question + " " + str(response))
             image_links = self._generate_image_links(car_name)
             
             return {

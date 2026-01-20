@@ -138,7 +138,20 @@ class SpecialistAgent:
             
             # Extract the final response
             final_message = result["messages"][-1]
-            content = final_message.content if hasattr(final_message, 'content') else str(final_message)
+            raw_content = final_message.content if hasattr(final_message, 'content') else str(final_message)
+            
+            # Handle content that may be a list (structured content from LangChain)
+            if isinstance(raw_content, list):
+                # Extract text from structured content
+                text_parts = []
+                for item in raw_content:
+                    if isinstance(item, dict) and 'text' in item:
+                        text_parts.append(item['text'])
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+                content = '\n'.join(text_parts) if text_parts else str(raw_content)
+            else:
+                content = raw_content
             
             # Track tools used
             tools_used = []
