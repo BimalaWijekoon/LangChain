@@ -1,0 +1,46 @@
+# AutoMind: Real-Time Car Enthusiast Advisor
+# Python Dependencies
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# ============================================
+# LangChain - NLP Framework
+# ============================================
+langchain>=0.3.0                    # Core LangChain framework
+langchain-core>=0.3.0               # Core abstractions
+langchain-community>=0.3.0          # Community tools (DuckDuckGo, etc.)
+langchain-google-genai>=2.0.0       # Google Gemini integration
+langchain-huggingface>=0.1.0        # HuggingFace embeddings
+langgraph>=0.2.0                    # For advanced agent workflows
+
+# ============================================
+# Google Gemini (for Vision/Image Analysis)
+# ============================================
+google-genai>=1.0.0                 # New Gemini SDK for vision
+
+# ============================================
+# Search & Knowledge Tools
+# ============================================
+ddgs>=6.0.0                         # DuckDuckGo search (new package name)
+wikipedia>=1.4.0                    # Wikipedia lookups
+youtube-search-python>=1.6.0        # YouTube video search
+
+# ============================================
+# RAG - Vector Database
+# ============================================
+faiss-cpu>=1.7.0                    # FAISS vector store (CPU)
+sentence-transformers>=2.2.0        # Embeddings model
+
+# ============================================
+# Structured Output
+# ============================================
+pydantic>=2.0.0                     # Data validation
+
+# ============================================
+# Utilities
+# ============================================
+markdown>=3.5.0                     # Markdown rendering
+python-dotenv>=1.0.0                # Environment variables
+Pillow>=10.0.0                      # Image processing
