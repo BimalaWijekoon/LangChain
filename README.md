@@ -276,7 +276,7 @@ AutoMind/
 ```bash
 # 1. Clone the repository
 git clone https://github.com/BimalaWijekoon/LangChain.git
-cd AutoMind
+cd LangChain
 
 # 2. Create virtual environment
 python -m venv venv
